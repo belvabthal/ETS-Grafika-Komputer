@@ -1,0 +1,28 @@
+# Sesuaikan path ini dengan lokasi Raylib di komputermu saat ini
+RAYLIB_PATH = C:/raylib/raylib/src
+
+CC     = gcc
+CFLAGS = -Wall -O2 -I. -I$(RAYLIB_PATH)
+LIBS   = -L$(RAYLIB_PATH) -lraylib -lopengl32 -lgdi32 -lwinmm -lm
+
+TARGET = simulasi_camping.exe
+
+# Menyesuaikan dengan arsitektur FSM dan Objek kita
+SRCS = main.c \
+       coords.c \
+       src/algo/dda.c \
+       src/algo/bresenham.c \
+       src/algo/midcircle.c \
+       src/ui/button.c \
+       
+
+all: $(TARGET)
+
+$(TARGET): $(SRCS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(SRCS) $(LIBS)
+
+clean:
+	rm -f $(TARGET)
+
+run: all
+	./$(TARGET)
