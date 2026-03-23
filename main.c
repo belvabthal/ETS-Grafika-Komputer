@@ -1,26 +1,26 @@
 #include <raylib.h>
+#include "screen_type.h" // 1. MENGGUNAKAN HEADER BARU
 #include "src/ui/button.h"
-
-typedef enum {
-    SCREEN_MENU = 0,
-    SCREEN_SIMULATION,
-    SCREEN_OBJECT_VIEWER,
-    SCREEN_ABOUT
-} AppScreen;
+#include "src/screens/screen_patterns.h"
+#include "coords.h" 
 
 int main(void) {
-    const int screenW = 800;
-    const int screenH = 600;
-
-    InitWindow(screenW, screenH, "Simulasi Camping - Grafika Komputer");
+    // 2. MENGGUNAKAN MAKRO UKURAN LAYAR DARI DOSEN
+    InitWindow(SCREEN_W, SCREEN_H, "Simulasi Camping - Grafika Komputer");
     SetTargetFPS(60);
+
+    // 3. RACIKAN KOORDINAT DOSEN
+    G_OriginX  = SCREEN_W / 2;
+    G_OriginY  = SCREEN_H / 2 + 30; // Digeser ke bawah untuk ruang Header
+    G_TickStep = 38;                // Skala grid presisi
 
     AppScreen currentScreen = SCREEN_MENU;
 
-    UIButton btnSim =   {{300, 200, 200, 50}, "Play Simulasi", DARKGRAY, GRAY, WHITE};
-    UIButton btnObj =   {{300, 270, 200, 50}, "Objek 2D", DARKGRAY, GRAY, WHITE};
-    UIButton btnAbout = {{300, 340, 200, 50}, "About", DARKGRAY, GRAY, WHITE};
-    UIButton btnExit =  {{300, 410, 200, 50}, "Exit", MAROON, RED, WHITE};
+    // 4. POSISI TOMBOL DISESUAIKAN KE TENGAH LAYAR (X = 400)
+    UIButton btnSim =   {{400, 250, 200, 50}, "Animasi 2D", DARKGRAY, GRAY, WHITE};
+    UIButton btnObj =   {{400, 320, 200, 50}, "Pola 2D", DARKGRAY, GRAY, WHITE};
+    UIButton btnAbout = {{400, 390, 200, 50}, "About", DARKGRAY, GRAY, WHITE};
+    UIButton btnExit =  {{400, 460, 200, 50}, "Exit", MAROON, RED, WHITE};
     
     UIButton btnBack =  {{20, 20, 100, 40}, "< Back", DARKGRAY, GRAY, WHITE};
 
@@ -30,7 +30,8 @@ int main(void) {
         switch (currentScreen) {
             case SCREEN_MENU:
                 ClearBackground(RAYWHITE);
-                DrawText("SIMULASI CAMPING MATEMATIS", 170, 80, 28, DARKBLUE);
+                // Judul juga digeser ke tengah
+                DrawText("SIMULASI CAMPING MATEMATIS", 270, 100, 28, DARKBLUE);
                 
                 if (GuiButton(btnSim)) currentScreen = SCREEN_SIMULATION;
                 if (GuiButton(btnObj)) currentScreen = SCREEN_OBJECT_VIEWER;
@@ -40,19 +41,17 @@ int main(void) {
 
             case SCREEN_SIMULATION:
                 ClearBackground(SKYBLUE); 
-                DrawText("Layar Simulasi (Animasi di sini)", 250, 250, 20, BLACK);
+                DrawText("Layar Simulasi (Animasi di sini)", 350, 300, 20, BLACK);
                 if (GuiButton(btnBack)) currentScreen = SCREEN_MENU;
                 break;
 
             case SCREEN_OBJECT_VIEWER:
-                ClearBackground(BLACK);
-                DrawText("Layar Objek 2D (Grid Koordinat di sini)", 200, 250, 20, GREEN);
-                if (GuiButton(btnBack)) currentScreen = SCREEN_MENU;
+                DrawBlueprintPatternsScreen(btnBack, (int*)&currentScreen);
                 break;
 
             case SCREEN_ABOUT:
                 ClearBackground(LIGHTGRAY);
-                DrawText("Tugas Praktikum Grafika Komputer", 230, 250, 20, BLACK);
+                DrawText("Tugas Praktikum Grafika Komputer", 330, 300, 20, BLACK);
                 if (GuiButton(btnBack)) currentScreen = SCREEN_MENU;
                 break;
         }

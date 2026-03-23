@@ -11,6 +11,13 @@ SRCS = main.c \
        src/algo/bresenham.c \
        src/algo/midcircle.c \
        src/ui/button.c \
+       src/objects/car.c \
+       src/objects/tent.c \
+       src/objects/env.c \
+       src/screens/screen_menu.c \
+       src/screens/screen_sim.c \
+       src/screens/screen_obj.c \
+       src/screens/screen_about.c
 
 OBJS = $(SRCS:.c=.o)
 

@@ -14,6 +14,12 @@ SRCS = main.c \
        src/algo/bresenham.c \
        src/algo/midcircle.c \
        src/ui/button.c \
+       src/ui/cartesian.c \
+       src/objects/tent.c \
+       src/objects/env.c \
+       src/objects/car.c \
+       src/objects/person.c \
+       src/screens/screen_patterns.c
        
 
 all: $(TARGET)
