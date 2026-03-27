@@ -4,6 +4,6 @@
 #include "raylib.h"
 
 void DrawComplexTree(float cx, float cy, float scale, bool isOutlineMode);
-void DrawComplexCampfire(float cx, float cy, float scale, bool isOutlineMode);
+void DrawComplexCampfire(float cx, float cy, float scale, bool isOutlineMode, float animTime);
 
 #endif

@@ -2,6 +2,7 @@
 #include "screen_type.h" // 1. MENGGUNAKAN HEADER BARU
 #include "src/ui/button.h"
 #include "src/screens/screen_patterns.h"
+#include "src/screens/screen_simulation.h"
 #include "coords.h" 
 
 int main(void) {
@@ -40,9 +41,7 @@ int main(void) {
                 break;
 
             case SCREEN_SIMULATION:
-                ClearBackground(SKYBLUE); 
-                DrawText("Layar Simulasi (Animasi di sini)", 350, 300, 20, BLACK);
-                if (GuiButton(btnBack)) currentScreen = SCREEN_MENU;
+                DrawSimulationScreen(btnBack, (int*)&currentScreen);
                 break;
 
             case SCREEN_OBJECT_VIEWER:

@@ -1,133 +1,162 @@
 #include "env.h"
 #include "coords.h"
-#include "src/algo/bresenham.h" // Menggunakan implementasi dosen
+#include "src/algo/bresenham.h" 
+#include "src/algo/midcircle.h" // WAJIB DITAMBAHKAN untuk algoritma daun dan api
 #include <stdio.h>
 
-void DrawComplexTree(float cx, float cy, float scale, bool isOutlineMode) {
-    // 1. Kalkulasi Dimensi dalam unit Kartesian
-    float trunkW = 1.0f * scale; 
-    float trunkH = 2.0f * scale; 
-    float leavesW = 3.0f * scale; 
-    float leavesH = 3.0f * scale; 
+// Makro pemetaan presisi
+#define MAP_X(x) (G_OriginX + (int)((x) * G_TickStep))
+#define MAP_Y(y) (G_OriginY - (int)((y) * G_TickStep))
 
-    // 2. Tentukan Titik-Titik Geometri (Hierarchical Decomposition)
-    // Batang (persegi panjang)
-    float x_b0 = cx - (trunkW / 2); // Kiri batang
-    float y_b0 = cy;                // Bawah batang
-    float x_b1 = cx + (trunkW / 2); // Kanan batang
-    float y_b1 = cy + trunkH;       // Atas batang
+// Helper untuk mewarnai balok menggunakan Bresenham
+static void FillRect(int xL, int xR, int yT, int yB, Color c) {
+    for (int y = yT; y <= yB; y++) BresenhamLine(xL, y, xR, y, c);
+}
 
-    // Daun (segitiga sama kaki)
-    float x_d0 = cx - (leavesW / 2);    // Kiri bawah daun
-    float y_d0 = cy + trunkH;           // Garis bawah daun
-    float x_d1 = cx + (leavesW / 2);    // Kanan bawah daun
-    float x_d2 = cx;                    // Puncak daun tengah
-    float y_d2 = cy + trunkH + leavesH; // Tinggi puncak daun
-
-    if (isOutlineMode) {
-        // --- MODE BLUEPRINT (Hanya Outline) ---
-        Color outlineColor = LIGHTGRAY;
-        
-        // Gambar Batang
-        BresenhamLine(CS_X(x_b0), CS_Y(y_b0), CS_X(x_b1), CS_Y(y_b0), outlineColor); // Bawah
-        BresenhamLine(CS_X(x_b1), CS_Y(y_b0), CS_X(x_b1), CS_Y(y_b1), outlineColor); // Kanan
-        BresenhamLine(CS_X(x_b1), CS_Y(y_b1), CS_X(x_b0), CS_Y(y_b1), outlineColor); // Atas
-        BresenhamLine(CS_X(x_b0), CS_Y(y_b1), CS_X(x_b0), CS_Y(y_b0), outlineColor); // Kiri
-
-        // Gambar Daun
-        BresenhamLine(CS_X(x_d0), CS_Y(y_d0), CS_X(x_d1), CS_Y(y_d0), outlineColor); // Bawah
-        BresenhamLine(CS_X(x_d1), CS_Y(y_d0), CS_X(x_d2), CS_Y(y_d2), outlineColor); // Kanan
-        BresenhamLine(CS_X(x_d2), CS_Y(y_d2), CS_X(x_d0), CS_Y(y_d0), outlineColor); // Kiri
-
-        // Teks Koordinat Puncak
-        char coordsText[20];
-        snprintf(coordsText, 20, "(%.1f, %.1f)", cx, cy + trunkH + leavesH);
-        DrawText(coordsText, CS_X(x_d2) - 15, CS_Y(y_d2) - 15, 10, outlineColor);
-
+// =========================================================================
+// FUNGSI MATEMATIKA BARU: Teardrop (Gabungan Lingkaran & Segitiga Interpolasi)
+// =========================================================================
+static void DrawFlameTeardrop(int apexX, int apexY, int baseX, int baseY, int r, Color col, bool isOutline) {
+    if (isOutline) {
+        // Mode Blueprint: Gambar lingkaran alas dan 2 sisi miring segitiga
+        Midcircle(baseX, baseY, r, col);
+        BresenhamLine(baseX - r, baseY, apexX, apexY, col); // Sisi kiri
+        BresenhamLine(baseX + r, baseY, apexX, apexY, col); // Sisi kanan
     } else {
-        // --- MODE PENUH (SCANLINE FILLING MENGGUNAKAN BRESENHAM) ---
+        // Mode Penuh: Mewarnai dengan Scanline
+        // 1. Gambar alas membulat (Lingkaran Penuh)
+        MidcircleFilled(baseX, baseY, r, col);
         
-        // 1. Mewarnai Batang (Rectangle Scanline)
-        // Kita ubah dulu batas atas dan bawah ke koordinat layar
-        int sy_b_top = CS_Y(y_b1);    // Nilai Y layar lebih kecil di atas
-        int sy_b_bottom = CS_Y(y_b0); // Nilai Y layar lebih besar di bawah
-        int sx_b_left = CS_X(x_b0);
-        int sx_b_right = CS_X(x_b1);
-
-        // Tarik garis horizontal dari atas ke bawah batang
-        for (int y = sy_b_top; y <= sy_b_bottom; y++) {
-            BresenhamLine(sx_b_left, y, sx_b_right, y, BROWN);
-        }
-
-        // 2. Mewarnai Daun (Triangle Scanline Interpolation)
-        int sy_d_top = CS_Y(y_d2);
-        int sy_d_bottom = CS_Y(y_d0);
-        int sx_d_top = CS_X(x_d2);
-        int sx_d_left = CS_X(x_d0);
-        int sx_d_right = CS_X(x_d1);
-
-        // Hindari pembagian dengan nol jika tinggi daun 0
-        int deltaY = sy_d_bottom - sy_d_top;
-        if (deltaY > 0) {
-            // Tarik garis horizontal dari pucuk daun hingga ke alas
-            for (int y = sy_d_top; y <= sy_d_bottom; y++) {
-                // Interpolasi linear: mencari jarak proporsional 't' dari rentang 0.0 hingga 1.0
-                float t = (float)(y - sy_d_top) / (float)deltaY;
-                
-                // Mencari batas kiri dan batas kanan x pada titik Y saat ini
-                int currentX_left = sx_d_top + (int)(t * (sx_d_left - sx_d_top));
-                int currentX_right = sx_d_top + (int)(t * (sx_d_right - sx_d_top));
-                
-                BresenhamLine(currentX_left, y, currentX_right, y, GREEN);
+        // 2. Gambar ujung meruncing (Interpolasi Segitiga dari Puncak ke Diameter Lingkaran)
+        int dy = baseY - apexY; // baseY di layar nilainya lebih besar dari apexY (karena Y terbalik)
+        if (dy > 0) {
+            for (int y = apexY; y <= baseY; y++) {
+                float t = (float)(y - apexY) / dy;
+                // Batas alas segitiga adalah lebar diameter lingkaran (baseX - r) hingga (baseX + r)
+                int xl = apexX + (int)(t * ((baseX - r) - apexX));
+                int xr = apexX + (int)(t * ((baseX + r) - apexX));
+                BresenhamLine(xl, y, xr, y, col);
             }
         }
     }
 }
 
-void DrawComplexCampfire(float cx, float cy, float scale, bool isOutlineMode) {
-    // Kayu Bakar (Menyilang)
-    float logL_x0 = cx - 1.5f * scale, logL_y0 = cy + 0.5f * scale;
-    float logL_x1 = cx + 1.5f * scale, logL_y1 = cy - 0.5f * scale;
-    
-    float logR_x0 = cx - 1.5f * scale, logR_y0 = cy - 0.5f * scale;
-    float logR_x1 = cx + 1.5f * scale, logR_y1 = cy + 0.5f * scale;
+void DrawComplexTree(float cx, float cy, float scale, bool isOutlineMode) {
+    float s = scale;
 
-    // Api Utama (Segitiga)
-    float f_x0 = cx - 1.0f * scale, f_y0 = cy;
-    float f_x1 = cx + 1.0f * scale, f_y1 = cy;
-    float f_x2 = cx, f_y2 = cy + 2.5f * scale; // Puncak api
+    // === 1. ARSITEKTUR KOORDINAT BATANG (TRUNK) ===
+    int TRUNK_L = MAP_X(cx - 0.3f * s);
+    int TRUNK_R = MAP_X(cx + 0.3f * s);
+    int TRUNK_B = MAP_Y(cy - 1.0f * s); // Pangkal di tanah
+    int TRUNK_T = MAP_Y(cy + 1.5f * s); // Ketinggian batang
+
+    // === 2. ARSITEKTUR KANOPI DAUN (SEED OF LIFE) ===
+    int C_X = MAP_X(cx);
+    int C_Y = MAP_Y(cy + 2.2f * s); 
+    int R = (int)(0.9f * s * G_TickStep); 
+
+    int dx = (int)(R * 0.866025f); 
+    int dy = (int)(R * 0.5f);      
+
+    Color trunkCol = DARKBROWN;
+    Color leafDark = DARKGREEN;   
+    Color leafMid  = GREEN;       
+    Color leafLight= LIME;        
+    Color lineCol  = RAYWHITE;
+
+    if (isOutlineMode) {
+        BresenhamLine(TRUNK_L, TRUNK_B, TRUNK_R, TRUNK_B, lineCol);
+        BresenhamLine(TRUNK_R, TRUNK_B, TRUNK_R, TRUNK_T, lineCol);
+        BresenhamLine(TRUNK_R, TRUNK_T, TRUNK_L, TRUNK_T, lineCol);
+        BresenhamLine(TRUNK_L, TRUNK_T, TRUNK_L, TRUNK_B, lineCol);
+
+        Midcircle(C_X, C_Y, R, lineCol);             
+        Midcircle(C_X, C_Y - R, R, lineCol);         
+        Midcircle(C_X, C_Y + R, R, lineCol);         
+        Midcircle(C_X + dx, C_Y - dy, R, lineCol);   
+        Midcircle(C_X + dx, C_Y + dy, R, lineCol);   
+        Midcircle(C_X - dx, C_Y - dy, R, lineCol);   
+        Midcircle(C_X - dx, C_Y + dy, R, lineCol);   
+
+        char txt[30]; snprintf(txt, 30, "Radius Daun: %dpx", R);
+        DrawText(txt, C_X - 40, C_Y - R - 20, 10, YELLOW);
+    } else {
+        FillRect(TRUNK_L, TRUNK_R, TRUNK_T, TRUNK_B, trunkCol);
+
+        MidcircleFilled(C_X, C_Y + R, R, leafDark);
+        MidcircleFilled(C_X - dx, C_Y + dy, R, leafDark);
+        MidcircleFilled(C_X + dx, C_Y + dy, R, leafDark);
+
+        MidcircleFilled(C_X - dx, C_Y - dy, R, leafMid);
+        MidcircleFilled(C_X + dx, C_Y - dy, R, leafMid);
+        MidcircleFilled(C_X, C_Y, R, leafMid); 
+
+        MidcircleFilled(C_X, C_Y - R, R, leafLight);
+    }
+}
+
+void DrawComplexCampfire(float cx, float cy, float scale, bool isOutlineMode) {
+    float s = scale;
+
+    // 1. KAYU BAKAR (Log Geometri)
+    float logL_x0 = cx - 1.5f * s, logL_y0 = cy + 0.5f * s;
+    float logL_x1 = cx + 1.5f * s, logL_y1 = cy - 0.5f * s;
+    
+    float logR_x0 = cx - 1.5f * s, logR_y0 = cy - 0.5f * s;
+    float logR_x1 = cx + 1.5f * s, logR_y1 = cy + 0.5f * s;
+
+    // 2. TATA LETAK 4 API (Teardrop Geometrics)
+    // Api Utama (Tengah, Besar)
+    int mainBaseX = MAP_X(cx);
+    int mainBaseY = MAP_Y(cy);
+    int mainApexX = MAP_X(cx);
+    int mainApexY = MAP_Y(cy + 2.5f * s);
+    int mainR = (int)(0.8f * s * G_TickStep);
+
+    // Api Kiri (Condong Kiri, Sedang)
+    int leftBaseX = MAP_X(cx - 0.6f * s);
+    int leftBaseY = MAP_Y(cy - 0.2f * s);
+    int leftApexX = MAP_X(cx - 1.2f * s);  // Puncak digeser ke kiri
+    int leftApexY = MAP_Y(cy + 1.5f * s);
+    int leftR = (int)(0.5f * s * G_TickStep);
+
+    // Api Kanan (Condong Kanan, Sedang)
+    int rightBaseX = MAP_X(cx + 0.6f * s);
+    int rightBaseY = MAP_Y(cy - 0.2f * s);
+    int rightApexX = MAP_X(cx + 1.2f * s); // Puncak digeser ke kanan
+    int rightApexY = MAP_Y(cy + 1.5f * s);
+    int rightR = (int)(0.5f * s * G_TickStep);
+
+    // Api Dalam (Tengah, Kecil)
+    int innerBaseX = MAP_X(cx);
+    int innerBaseY = MAP_Y(cy);
+    int innerApexX = MAP_X(cx);
+    int innerApexY = MAP_Y(cy + 1.2f * s);
+    int innerR = (int)(0.4f * s * G_TickStep);
 
     if (isOutlineMode) {
         Color outCol = LIGHTGRAY;
         // Kayu menyilang
-        BresenhamLine(CS_X(logL_x0), CS_Y(logL_y0), CS_X(logL_x1), CS_Y(logL_y1), DARKBROWN);
-        BresenhamLine(CS_X(logR_x0), CS_Y(logR_y0), CS_X(logR_x1), CS_Y(logR_y1), DARKBROWN);
+        BresenhamLine(MAP_X(logL_x0), MAP_Y(logL_y0), MAP_X(logL_x1), MAP_Y(logL_y1), DARKBROWN);
+        BresenhamLine(MAP_X(logR_x0), MAP_Y(logR_y0), MAP_X(logR_x1), MAP_Y(logR_y1), DARKBROWN);
         
-        // Api
-        BresenhamLine(CS_X(f_x0), CS_Y(f_y0), CS_X(f_x1), CS_Y(f_y1), outCol);
-        BresenhamLine(CS_X(f_x1), CS_Y(f_y1), CS_X(f_x2), CS_Y(f_y2), outCol);
-        BresenhamLine(CS_X(f_x2), CS_Y(f_y2), CS_X(f_x0), CS_Y(f_y0), outCol);
+        // Render Blueprint Api
+        DrawFlameTeardrop(mainApexX, mainApexY, mainBaseX, mainBaseY, mainR, outCol, true);
+        DrawFlameTeardrop(leftApexX, leftApexY, leftBaseX, leftBaseY, leftR, outCol, true);
+        DrawFlameTeardrop(rightApexX, rightApexY, rightBaseX, rightBaseY, rightR, outCol, true);
+        DrawFlameTeardrop(innerApexX, innerApexY, innerBaseX, innerBaseY, innerR, outCol, true);
         
         char txt[30]; snprintf(txt, 30, "Api(%.1f, %.1f)", cx, cy + 2.5f*scale);
-        DrawText(txt, CS_X(f_x2)-20, CS_Y(f_y2)-15, 10, ORANGE);
+        DrawText(txt, mainApexX - 30, mainApexY - 15, 10, ORANGE);
     } else {
-        // Menggunakan garis tebal buatan dosen untuk kayu
-        Bres_ThickLine(CS_X(logL_x0), CS_Y(logL_y0), CS_X(logL_x1), CS_Y(logL_y1), 8, DARKBROWN);
-        Bres_ThickLine(CS_X(logR_x0), CS_Y(logR_y0), CS_X(logR_x1), CS_Y(logR_y1), 8, DARKBROWN);
+        // Mode Solid Kayu
+        Bres_ThickLine(MAP_X(logL_x0), MAP_Y(logL_y0), MAP_X(logL_x1), MAP_Y(logL_y1), 10, DARKBROWN);
+        Bres_ThickLine(MAP_X(logR_x0), MAP_Y(logR_y0), MAP_X(logR_x1), MAP_Y(logR_y1), 10, DARKBROWN);
         
-        // Scanline untuk Api (Merah/Oranye)
-        int sy_top = CS_Y(f_y2), sy_bot = CS_Y(f_y0);
-        int sx_top = CS_X(f_x2), sx_left = CS_X(f_x0), sx_right = CS_X(f_x1);
-        int dy = sy_bot - sy_top;
-        if (dy > 0) {
-            for (int y = sy_top; y <= sy_bot; y++) {
-                float t = (float)(y - sy_top) / dy;
-                int xl = sx_top + (int)(t * (sx_left - sx_top));
-                int xr = sx_top + (int)(t * (sx_right - sx_top));
-                // Efek gradasi sederhana berbasis Y
-                Color fireCol = (y < sy_top + dy/2) ? YELLOW : RED; 
-                BresenhamLine(xl, y, xr, y, fireCol);
-            }
-        }
+        // Mode Solid Api (Urutan render dari belakang ke depan menentukan Z-Index visual)
+        DrawFlameTeardrop(mainApexX, mainApexY, mainBaseX, mainBaseY, mainR, RED, false);
+        DrawFlameTeardrop(leftApexX, leftApexY, leftBaseX, leftBaseY, leftR, ORANGE, false);
+        DrawFlameTeardrop(rightApexX, rightApexY, rightBaseX, rightBaseY, rightR, ORANGE, false);
+        DrawFlameTeardrop(innerApexX, innerApexY, innerBaseX, innerBaseY, innerR, YELLOW, false);
     }
 }

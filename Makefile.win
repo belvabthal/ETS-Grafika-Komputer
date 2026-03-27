@@ -19,7 +19,8 @@ SRCS = main.c \
        src/objects/env.c \
        src/objects/car.c \
        src/objects/person.c \
-       src/screens/screen_patterns.c
+       src/screens/screen_patterns.c \
+       src/screens/screen_simulation.c
        
 
 all: $(TARGET)

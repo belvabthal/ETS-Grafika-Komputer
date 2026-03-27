@@ -2,12 +2,14 @@
 #include "coords.h"
 #include "src/algo/bresenham.h" 
 #include "src/algo/midcircle.h" 
+#include <math.h> // Ditambahkan untuk fungsi cosf dan sinf pada velg ban
 #include <stdio.h>
 
+#ifndef PI
+#define PI 3.14159265358979323846f
+#endif
+
 // === SOLUSI PRESISI PIKSEL ===
-// Kita buat macro pemetaan sendiri yang mengalikan desimal (float) 
-// DENGAN skala terlebih dahulu, baru diubah ke integer (piksel layar).
-// Ini mencegah pemotongan desimal secara prematur!
 #define MAP_X(x) (G_OriginX + (int)((x) * G_TickStep))
 #define MAP_Y(y) (G_OriginY - (int)((y) * G_TickStep))
 
@@ -20,6 +22,22 @@ static void OutlineRect(int xL, int xR, int yT, int yB, Color c) {
 
 static void FillRect(int xL, int xR, int yT, int yB, Color c) {
     for (int y = yT; y <= yB; y++) BresenhamLine(xL, y, xR, y, c);
+}
+
+// FUNGSI BARU: Menggambar velg ban 6 bagian menggunakan trigonometri
+static void DrawWheelSpokes(int wx, int wy, int r, float angle, int thickness, Color c) {
+    // Memutar 3 garis melintasi titik pusat (jarak tiap garis 60 derajat atau PI/3)
+    for (int i = 0; i < 3; i++) {
+        float theta = angle + (i * PI / 3.0f);
+        int dx = (int)(cosf(theta) * r);
+        int dy = (int)(sinf(theta) * r);
+        
+        if (thickness > 1) {
+            Bres_ThickLine(wx - dx, wy - dy, wx + dx, wy + dy, thickness, c);
+        } else {
+            BresenhamLine(wx - dx, wy - dy, wx + dx, wy + dy, c);
+        }
+    }
 }
 
 void DrawComplexCar(float cx, float cy, float scale, bool isOutlineMode) {
@@ -104,13 +122,11 @@ void DrawComplexCar(float cx, float cy, float scale, bool isOutlineMode) {
         Midcircle(CG_X0, CG_Y_CEN, CG_R, lineCol);
         Midcircle(CG_X1, CG_Y_CEN, CG_R, lineCol);
 
-        // Roda (Memotong garis bawah)
+        // Roda (Diperbarui menjadi 6 palang statis)
         Midcircle(W1_X, W_Y, W_R, lineCol);
         Midcircle(W2_X, W_Y, W_R, lineCol);
-        BresenhamLine(W1_X - W_R, W_Y, W1_X + W_R, W_Y, lineCol); // Palang
-        BresenhamLine(W1_X, W_Y - W_R, W1_X, W_Y + W_R, lineCol);
-        BresenhamLine(W2_X - W_R, W_Y, W2_X + W_R, W_Y, lineCol);
-        BresenhamLine(W2_X, W_Y - W_R, W2_X, W_Y + W_R, lineCol);
+        DrawWheelSpokes(W1_X, W_Y, W_R, 0.0f, 1, lineCol);
+        DrawWheelSpokes(W2_X, W_Y, W_R, 0.0f, 1, lineCol);
 
         char txt[30]; snprintf(txt, 30, "Pusat Roda (y=-1)");
         DrawText(txt, W1_X - 40, W_Y + 20, 10, YELLOW);
@@ -153,15 +169,13 @@ void DrawComplexCar(float cx, float cy, float scale, bool isOutlineMode) {
         MidcircleFilled(CG_X0, CG_Y_CEN, CG_R, (Color){100, 60, 40, 255}); 
         MidcircleFilled(CG_X1, CG_Y_CEN, CG_R, (Color){100, 60, 40, 255}); 
 
-        // Roda (Lapisan paling depan menutupi sasis)
+        // Roda (Diperbarui menjadi 6 palang tebal statis)
         MidcircleFilled(W1_X, W_Y, W_R, BLACK);
         MidcircleFilled(W1_X, W_Y, (int)(W_R * 0.45f), LIGHTGRAY);
-        Bres_ThickLine(W1_X - W_R + 2, W_Y, W1_X + W_R - 2, W_Y, 4, DARKGRAY);
-        Bres_ThickLine(W1_X, W_Y - W_R + 2, W1_X, W_Y + W_R - 2, 4, DARKGRAY);
+        DrawWheelSpokes(W1_X, W_Y, W_R - 2, 0.0f, 4, DARKGRAY);
 
         MidcircleFilled(W2_X, W_Y, W_R, BLACK);
         MidcircleFilled(W2_X, W_Y, (int)(W_R * 0.45f), LIGHTGRAY);
-        Bres_ThickLine(W2_X - W_R + 2, W_Y, W2_X + W_R - 2, W_Y, 4, DARKGRAY);
-        Bres_ThickLine(W2_X, W_Y - W_R + 2, W2_X, W_Y + W_R - 2, 4, DARKGRAY);
+        DrawWheelSpokes(W2_X, W_Y, W_R - 2, 0.0f, 4, DARKGRAY);
     }
 }

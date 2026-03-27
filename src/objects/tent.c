@@ -51,9 +51,11 @@ void DrawComplexTent(float cx, float cy, float scale, bool isOutlineMode) {
         BresenhamLine(CS_X(x_t2), CS_Y(y_t2), CS_X(x_ropeLeft), CS_Y(y_ropeLeft), DARKGRAY);
         BresenhamLine(CS_X(x_t2), CS_Y(y_t2), CS_X(x_ropeRight), CS_Y(y_ropeRight), DARKGRAY);
 
-        // Pasak Tenda (Garis Vertikal Kecil)
-        BresenhamLine(CS_X(x_ropeLeft), CS_Y(y_ropeLeft), CS_X(x_ropeLeft), CS_Y(y_ropeLeft - 0.5f), RED);
-        BresenhamLine(CS_X(x_ropeRight), CS_Y(y_ropeRight), CS_X(x_ropeRight), CS_Y(y_ropeRight - 0.5f), RED);
+        // Pasak Tenda (Garis miring kecil)
+        // Pasak kiri, menancap sedikit ke arah kiri
+        BresenhamLine(CS_X(x_ropeLeft), CS_Y(y_ropeLeft), CS_X(x_ropeLeft) - 5, CS_Y(y_ropeLeft - 0.5f) + 10, RED);
+        // Pasak kanan, menancap sedikit ke arah kanan
+        BresenhamLine(CS_X(x_ropeRight), CS_Y(y_ropeRight), CS_X(x_ropeRight) + 5, CS_Y(y_ropeRight - 0.5f) + 10, RED);
 
         // Cetak Koordinat Puncak
         char txt[30];
@@ -99,5 +101,19 @@ void DrawComplexTent(float cx, float cy, float scale, bool isOutlineMode) {
         // Render Tali (agar tetap terlihat di mode penuh)
         BresenhamLine(CS_X(x_t2), CS_Y(y_t2), CS_X(x_ropeLeft), CS_Y(y_ropeLeft), DARKGRAY);
         BresenhamLine(CS_X(x_t2), CS_Y(y_t2), CS_X(x_ropeRight), CS_Y(y_ropeRight), DARKGRAY);
+        
+        // Render Pasak (Mode Penuh)
+        int pegLeftX = CS_X(x_ropeLeft);
+        int pegLeftY = CS_Y(y_ropeLeft);
+        int pegRightX = CS_X(x_ropeRight);
+        int pegRightY = CS_Y(y_ropeRight);
+        
+        // Pasak Kiri
+        Bres_ThickLine(pegLeftX, pegLeftY, pegLeftX - 6, pegLeftY + 12, 3, LIGHTGRAY); // Besi pasak
+        Bres_ThickLine(pegLeftX + 1, pegLeftY - 3, pegLeftX - 2, pegLeftY + 2, 4, RED); // Kepala merah
+        
+        // Pasak Kanan
+        Bres_ThickLine(pegRightX, pegRightY, pegRightX + 6, pegRightY + 12, 3, LIGHTGRAY); // Besi pasak
+        Bres_ThickLine(pegRightX - 1, pegRightY - 3, pegRightX + 2, pegRightY + 2, 4, RED); // Kepala merah
     }
 }
