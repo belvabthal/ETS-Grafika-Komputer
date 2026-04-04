@@ -1,0 +1,14 @@
+Catatan Mempelajari Tubes Komgraf
+Bagian Animasi:
+1. Putaran Roda (Rotasi): Roda tidak diputar secara asal. Sudut putar velg ($\theta$) dihitung membagi jarak tempuh linear ($x$) dengan jari-jari roda ($r$).     Kode: wheelAngle = carX / carScale;
+
+2. Gerak harmonik pada api unggun dan orang, yang mana katanya menggunakan osilasi, fungsi sinusoidal dan pendulum. jadi bagaimana sebenarnya rumus untuk api unggun dan orang apakah menggunakan rumus pendulum dan mengapa rumus sinus nya itu berbeda? antara ($y = A \sin(\omega t)$) dengan walkCycle = sinf(animTime * 12.0f) * 0.4f * s;  yang mana terdapat s dan juga 0.4. begitupun pada rumus api unggun terdapat variabel tambahan di luar sinf()
+lalu ada sedikit pertanyaan mengapa saat di animasi kita dapat melihat kayu bakar terlebih dahulu baru muncul api unggun. apakah jika animTime untuk api unggun bernilai negatif seperti -1 maka api nya belum di gambarkan ?
+
+3. jelaskan lebih detail terkait sistem kamera bagaimana logika scaling dan translation yang di implementasikan. lalu pada saat kamera di geser apa yang terjadi pada objek apakah di lakukan translasi dan scaling juga satu per satu?
+
+4. jelaskan lebih detail tetang lerp dan lerpcolor bagaimana logika matematis dibelakangnya. 
+
+5. Tolong jelaskan lebih detail terkait view frustum culling, serta bagaimana cara memberikan ukuran yang beragam pada pohon serta penempatannya. lalu anda kan menyoroti penggunaan view frustum ini agar FPS nya tinggi. tetapi ketika saya melakukan zoom in pada animasi ini mengapa fps nya drop apa yang menyebabkan hal itu terjadi.
+
+Bagian Objek:

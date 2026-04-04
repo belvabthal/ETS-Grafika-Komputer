@@ -3,17 +3,29 @@
 #include "screen_type.h"
 #include "src/algo/bresenham.h" 
 #include "src/objects/env.h"    
+#include "src/objects/car.h"
 #include "src/objects/tent.h"
 #include "src/objects/person.h"
-#include "src/objects/car.h"
 
 #include <stdio.h>
+#include <math.h>
 
-// Variabel Waktu Global Lokal untuk Simulasi
+// --- STATE ANIMASI & WAKTU ---
 static float simTimer = 0.0f; 
-static bool isSimRunning = true;
+static bool isPlaying = false; 
+static float timeScale = 1.0f; 
 
-// Helper: Interpolasi Warna Linear (LERP)
+// --- STATE KAMERA ---
+static int originalOriginX = 0;
+static int originalOriginY = 0;
+static int originalTickStep = 0;
+static bool isCameraInitialized = false;
+
+static float panOffsetX = 0.0f; 
+static float panOffsetY = 0.0f;
+static float targetZoom = 30.0f; 
+static float currentZoomFloat = 30.0f; 
+
 static Color LerpColor(Color a, Color b, float t) {
     if (t < 0.0f) t = 0.0f;
     if (t > 1.0f) t = 1.0f;
@@ -25,60 +37,225 @@ static Color LerpColor(Color a, Color b, float t) {
     };
 }
 
+static float Lerp(float a, float b, float t) {
+    if (t < 0.0f) t = 0.0f;
+    if (t > 1.0f) t = 1.0f;
+    return a + (b - a) * t;
+}
+
 void DrawSimulationScreen(UIButton btnBack, int* currentScreen) {
-    // 1. UPDATE TIMER
-    if (isSimRunning) {
-        simTimer += GetFrameTime(); // Menambah waktu sesuai FPS
+    // INISIALISASI KAMERA & STATE
+    if (!isCameraInitialized) {
+        originalOriginX = G_OriginX;
+        originalOriginY = G_OriginY;
+        originalTickStep = G_TickStep;
+        
+        targetZoom = 20.0f; 
+        currentZoomFloat = 20.0f;
+        panOffsetX = 0.0f;
+        panOffsetY = 0.0f;
+        
+        simTimer = 0.0f;
+        isPlaying = false; 
+        timeScale = 1.0f; 
+        
+        isCameraInitialized = true;
     }
 
-    // 2. SKENARIO WAKTU & WARNA LANGIT
-    Color skySiang = (Color){135, 206, 235, 255}; // Sky Blue
-    Color skySenja = (Color){255, 140,  0, 255};  // Dark Orange
-    Color skyMalam = (Color){ 10,  15,  30, 255}; // Biru Sangat Gelap
+    bool isSequenceDone = (simTimer >= 32.0f);
+
+    if (isPlaying) {
+        simTimer += GetFrameTime() * timeScale; 
+    }
+
+    // TIMING OBJEK UTAMA
+    float carX;
+    float carScale = 1.2f;
+    float groundLevel = -1.0f;
+    float carSpeed = 3.0f;
+    
+    if (simTimer < 25.0f) {
+        carX = 93.0f - (simTimer * carSpeed);
+    } else {
+        carX = 18.0f; 
+    }
+
+    // 3. MATEMATIKA KAMERA DINAMIS
+    float wheel = GetMouseWheelMove();
+    if (wheel != 0.0f) {
+        targetZoom += wheel * 10.0f; 
+        if (targetZoom < 10.0f) targetZoom = 10.0f;   
+        if (targetZoom > 80.0f) targetZoom = 80.0f; 
+    }
+    
+    if (isPlaying && simTimer > 5.0f && simTimer < 20.0f && wheel == 0.0f && targetZoom == 20.0f) {
+        targetZoom = Lerp(20.0f, 38.0f, (simTimer - 5.0f) / 15.0f);
+    }
+
+    currentZoomFloat = Lerp(currentZoomFloat, targetZoom, 10.0f * GetFrameTime());
+    G_TickStep = (int)roundf(currentZoomFloat);
+
+    float focusX;
+    if (simTimer < 25.0f) {
+        focusX = carX; 
+    } else {
+        float shiftPhase = (simTimer - 25.0f) / 4.0f; 
+        focusX = Lerp(18.0f, 4.5f, shiftPhase); 
+    }
+
+    float baseOriginX = (SCREEN_W * 0.5f) - (focusX * G_TickStep);
+    float baseOriginY = (SCREEN_H * 0.7f) - (groundLevel * G_TickStep);
+
+    if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+        Vector2 delta = GetMouseDelta();
+        panOffsetX += delta.x;
+        panOffsetY += delta.y;
+    } else {
+        panOffsetX = Lerp(panOffsetX, 0.0f, 5.0f * GetFrameTime());
+        panOffsetY = Lerp(panOffsetY, 0.0f, 5.0f * GetFrameTime());
+    }
+
+    // Kunci Sumbu X (Kiri & Kanan)
+    float worldMinX = -50.0f; // Batas mentok kiri (Posisi bintang/pohon terakhir)
+    float worldMaxX = 100.0f; // Batas mentok kanan (Titik awal mobil)
+
+    float maxOriginX = -(worldMinX * G_TickStep);
+    float minOriginX = SCREEN_W - (worldMaxX * G_TickStep);
+
+    // Kunci nilai pergeseran jika melewati batas matematika
+    if (baseOriginX + panOffsetX > maxOriginX) panOffsetX = maxOriginX - baseOriginX;
+    if (baseOriginX + panOffsetX < minOriginX) panOffsetX = minOriginX - baseOriginX;
+
+    // Kunci Sumbu Y (Atas & Bawah)
+    float worldMaxY = 95.0f; // Batas mentok atas (Sedikit di atas ruang bintang tertinggi Y=90)
+    float worldMinY = -15.0f; // Batas mentok bawah (Agar tidak melihat tanah terlalu dalam)
+
+    float maxOriginY = worldMaxY * G_TickStep;
+    float minOriginY = SCREEN_H + (worldMinY * G_TickStep);
+
+    // Kunci nilai pergeseran jika melewati batas angkasa atau kedalaman tanah
+    if (baseOriginY + panOffsetY > maxOriginY) panOffsetY = maxOriginY - baseOriginY;
+    if (baseOriginY + panOffsetY < minOriginY) panOffsetY = minOriginY - baseOriginY;
+
+    G_OriginX = (int)roundf(baseOriginX + panOffsetX);
+    G_OriginY = (int)roundf(baseOriginY + panOffsetY);
+
+    // WARNA LANGIT & TANAH
+    Color skyDay   = (Color){135, 206, 235, 255}; 
+    Color skyDusk  = (Color){255, 140,  0, 255};  
+    Color skyNight = (Color){ 15,  20,  40, 255}; 
 
     Color currentSky;
-    float phase;
+    if (simTimer < 8.0f) currentSky = skyDay;
+    else if (simTimer < 16.0f) currentSky = LerpColor(skyDay, skyDusk, (simTimer - 8.0f) / 8.0f);
+    else if (simTimer < 24.0f) currentSky = LerpColor(skyDusk, skyNight, (simTimer - 16.0f) / 8.0f);
+    else currentSky = skyNight;
 
-    // Transisi: Siang (0-4s) -> Senja (4-7s) -> Malam (7s+)
-    if (simTimer < 4.0f) {
-        currentSky = skySiang; // Diam di siang hari
-    } else if (simTimer >= 4.0f && simTimer < 7.0f) {
-        phase = (simTimer - 4.0f) / 3.0f; // Normalisasi 0.0 sampai 1.0
-        currentSky = LerpColor(skySiang, skySenja, phase); // Berubah ke oranye
-    } else if (simTimer >= 7.0f && simTimer < 10.0f) {
-        phase = (simTimer - 7.0f) / 3.0f;
-        currentSky = LerpColor(skySenja, skyMalam, phase); // Berubah ke malam
-    } else {
-        currentSky = skyMalam; // Diam di malam hari
-    }
-
-    // Gambar Latar Belakang (Langit)
     ClearBackground(currentSky);
 
-    // 3. GAMBAR TANAH (Horizon)
-    // Tanah kita ada di Y = -1.0 pada sistem kartesian
-    int groundY = G_OriginY - (int)(-1.0f * G_TickStep);
+    int groundY = MAP_Y(groundLevel);
+    Color groundCol = LerpColor((Color){50, 100, 40, 255}, (Color){15, 25, 15, 255}, (simTimer > 24.0f ? 1.0f : simTimer/24.0f));
     
-    // Tarik garis horizontal untuk mewarnai tanah dari horizon ke bawah layar
-    for (int y = groundY; y <= SCREEN_H; y++) {
-        // Semakin malam, tanah juga ikut menggelap
-        Color groundCol = LerpColor((Color){50, 100, 40, 255}, (Color){15, 25, 15, 255}, (simTimer/10.0f));
-        BresenhamLine(0, y, SCREEN_W, y, groundCol);
+    DrawRectangle(0, groundY, SCREEN_W, 2000, groundCol);
+    Bres_ThickLine(0, groundY, SCREEN_W, groundY, 4, DARKBROWN); 
+
+    if (simTimer > 24.0f) {
+            float starAlpha = (simTimer - 24.0f) / 2.0f; 
+            if (starAlpha > 1.0f) starAlpha = 1.0f; 
+
+            float camMinX = (0 - G_OriginX) / (float)G_TickStep;
+            float camMaxX = (SCREEN_W - G_OriginX) / (float)G_TickStep;
+
+            DrawStarField(camMinX - 1.0f, camMaxX + 1.0f, simTimer, starAlpha, false);
+        }
+
+    // VIEW FRUSTUM CULLING (HUTAN)
+    float camMinX = (0 - G_OriginX) / (float)G_TickStep;
+    float camMaxX = (SCREEN_W - G_OriginX) / (float)G_TickStep;
+
+    for (float tx = 100.0f; tx >= -50.0f; tx -= 3.5f) {
+        if (tx >= camMinX - 3.0f && tx <= camMaxX + 3.0f) {
+            if (tx < -5.0f || tx > 20.0f) { 
+                float randomScale = 1.5f + (fabs(sinf(tx)) * 0.8f); 
+                DrawComplexTree(tx, groundLevel + randomScale, randomScale, false);
+            }
+        }
     }
-    Bres_ThickLine(0, groundY, SCREEN_W, groundY, 4, DARKBROWN); // Garis batas tanah
 
-    // 4. RENDER OBJEK (Nanti diletakkan di sini)
-    // DrawComplexTent(...);
-    // DrawComplexTree(...);
-    // if (simTimer > 8.0f) DrawComplexCampfire(..., animTime); // Api nyala malam
+    // RENDER KAMP & OBJEK UTAMA
+    DrawComplexTent(-4.0f, groundLevel, 1.6f, false);
 
-    // 5. UI & DEBUGGING
-    if (GuiButton(btnBack)) {
-        *currentScreen = SCREEN_MENU;
-        simTimer = 0.0f; // Reset waktu jika keluar
+    float wheelAngle = carX / carScale; 
+    DrawComplexCar(carX, groundLevel + carScale, carScale, false, wheelAngle);
+
+    if (simTimer > 25.5f) {
+        float p2Time = simTimer - 25.5f; 
+        float personScale = 1.1f;
+        float personX;
+        float personWalkAnim;
+
+        if (p2Time < 5.0f) {
+            personX = 17.0f - (p2Time * 3.1f); 
+            personWalkAnim = p2Time; 
+        } else {
+            personX = 1.5f; 
+            personWalkAnim = 5.1f + (p2Time - 5.0f); 
+        }
+        DrawComplexPerson(personX, groundLevel + personScale, personScale, false, personWalkAnim);
+
+        float fireAnimState = -1.0f; 
+        if (p2Time > 5.5f) fireAnimState = p2Time - 5.5f; 
+        DrawComplexCampfire(4.5f, groundLevel, 1.0f, false, fireAnimState);
     }
+        // UI MEDIA CONTROLS 
+        if (GuiButton(btnBack)) {
+            G_OriginX = originalOriginX;
+            G_OriginY = originalOriginY;
+            G_TickStep = originalTickStep;
+            isCameraInitialized = false;
+            *currentScreen = SCREEN_MENU;
+        }
 
-    // Teks Indikator Waktu
-    char timeTxt[30]; snprintf(timeTxt, 30, "Waktu Simulasi: %.1f s", simTimer);
-    DrawText(timeTxt, SCREEN_W - 220, 20, 20, RAYWHITE);
+        int panelW = 380;
+        int panelH = 70;
+        int panelX = (SCREEN_W / 2) - (panelW / 2);
+        int panelY = SCREEN_H - 90;
+
+        DrawRectangle(panelX, panelY, panelW, panelH, Fade(BLACK, 0.6f));
+        DrawRectangleLines(panelX, panelY, panelW, panelH, colLizard);
+
+        // Ikon Navigasi 
+        UIButton btnSpeedDown = {{panelX + 20, panelY + 15, 50, 40}, "<<", colFlatGreen, colLizard, colWhiteText};
+        
+        const char* playText = isSequenceDone ? "RESTART" : (isPlaying ? "PAUSE" : "PLAY");
+        Color playBgCol = isSequenceDone ? colAcorn : (isPlaying ? colGermanDark : colFlatGreen);
+        Color playHovCol = isSequenceDone ? colBrightGold : (isPlaying ? colFlatGreen : colLizard);
+        
+        // Tombol aksi pusat 
+        UIButton btnPlay = {{panelX + 85, panelY + 15, 120, 40}, playText, playBgCol, playHovCol, colWhiteText};
+        UIButton btnSpeedUp = {{panelX + 220, panelY + 15, 50, 40}, ">>", colFlatGreen, colLizard, colWhiteText};
+
+        if (GuiButton(btnSpeedDown)) {
+            timeScale -= 0.5f;
+            if (timeScale < 0.5f) timeScale = 0.5f; 
+        }
+        
+        if (GuiButton(btnPlay)) {
+            if (isSequenceDone) {
+                simTimer = 0.0f;
+                timeScale = 1.0f;
+                isPlaying = true;
+            } else {
+                isPlaying = !isPlaying;
+            }
+        }
+
+        if (GuiButton(btnSpeedUp)) {
+            timeScale += 0.5f;
+            if (timeScale > 5.0f) timeScale = 5.0f; 
+        }
+
+        char timeTxt[30]; 
+        snprintf(timeTxt, 30, "%.1fx | %02ds", timeScale, (int)simTimer);
+        DrawText(timeTxt, panelX + 290, panelY + 27, 16, colBrightGold); 
 }

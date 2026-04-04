@@ -19,4 +19,7 @@ extern int G_TickStep;
 int CS_X(int cart_x);
 int CS_Y(int cart_y);
 
+#define MAP_X(x) (G_OriginX + (int)roundf((x) * G_TickStep))
+#define MAP_Y(y) (G_OriginY - (int)roundf((y) * G_TickStep))
+
 #endif
