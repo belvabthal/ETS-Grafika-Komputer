@@ -18,7 +18,7 @@ static void OutlineRect(int xL, int xR, int yT, int yB, Color c) {
 
 static void FillRect(int xL, int xR, int yT, int yB, Color c) {
     for (int y = yT; y <= yB; y++) {
-        FastHorizontalLine(xL, xR, y, c); 
+        BresenhamLine(xL, y, xR, y, c);
     }
 }
 
@@ -102,8 +102,11 @@ void DrawComplexCar(float cx, float cy, float scale, bool isOutlineMode, float w
 
         // Roda & Rotasi
         Midcircle(W1_X, W_Y, W_R, lineCol);
+        Midcircle(W1_X, W_Y, (int)(W_R * 0.45f), lineCol);
         Midcircle(W2_X, W_Y, W_R, lineCol);
+        Midcircle(W2_X, W_Y, (int)(W_R * 0.45f), lineCol);
         DrawWheelSpokes(W1_X, W_Y, W_R, wheelAngle, 1, lineCol);
+        Midcircle(W2_X, W_Y, (int)(W_R * 0.45f), lineCol);
         DrawWheelSpokes(W2_X, W_Y, W_R, wheelAngle, 1, lineCol);
 
     } else {
@@ -116,7 +119,7 @@ void DrawComplexCar(float cx, float cy, float scale, bool isOutlineMode, float w
             for (int y = Y_TOP; y <= Y_MID; y++) {
                 float t = (float)(y - Y_TOP) / dy_cabin;
                 int current_xL = X_ROOF_L + (int)(t * (X_CABIN_L - X_ROOF_L));
-                FastHorizontalLine(current_xL, X_CABIN_R, y, carCol); 
+                BresenhamLine(current_xL, y, X_CABIN_R, y, carCol);
             }
         }
         Bres_ThickLine(X_CABIN_L, Y_BOT, X_CABIN_L, Y_MID, 2, DARKBLUE);

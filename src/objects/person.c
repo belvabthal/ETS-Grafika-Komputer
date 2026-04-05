@@ -151,7 +151,7 @@ void DrawComplexPerson(float cx, float cy, float scale, bool isOutlineMode, floa
         Bres_ThickLine(X_FOOT_L - 8, Y_GROUND, X_FOOT_L + 8, Y_GROUND, 4, shoeCol);
         Bres_ThickLine(X_FOOT_R - 8, Y_GROUND, X_FOOT_R + 8, Y_GROUND, 4, shoeCol);
 
-        // 2. Badan 
+        // Badan 
         FillRect(X_SHL_L, X_SHL_R, Y_SHOULDER, Y_HIP, shirtCol);
         
         // Tali Ransel

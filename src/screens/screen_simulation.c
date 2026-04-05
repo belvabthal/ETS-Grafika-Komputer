@@ -85,7 +85,7 @@ void DrawSimulationScreen(UIButton btnBack, int* currentScreen) {
     if (wheel != 0.0f) {
         targetZoom += wheel * 10.0f; 
         if (targetZoom < 10.0f) targetZoom = 10.0f;   
-        if (targetZoom > 80.0f) targetZoom = 80.0f; 
+        if (targetZoom > 40.0f) targetZoom = 40.0f; 
     }
     
     if (isPlaying && simTimer > 5.0f && simTimer < 20.0f && wheel == 0.0f && targetZoom == 20.0f) {
@@ -207,55 +207,67 @@ void DrawSimulationScreen(UIButton btnBack, int* currentScreen) {
         if (p2Time > 5.5f) fireAnimState = p2Time - 5.5f; 
         DrawComplexCampfire(4.5f, groundLevel, 1.0f, false, fireAnimState);
     }
-        // UI MEDIA CONTROLS 
-        if (GuiButton(btnBack)) {
-            G_OriginX = originalOriginX;
-            G_OriginY = originalOriginY;
-            G_TickStep = originalTickStep;
-            isCameraInitialized = false;
-            *currentScreen = SCREEN_MENU;
+    // UI MEDIA CONTROLS 
+    if (GuiButton(btnBack)) {
+        G_OriginX = originalOriginX;
+        G_OriginY = originalOriginY;
+        G_TickStep = originalTickStep;
+        isCameraInitialized = false;
+        *currentScreen = SCREEN_MENU;
+    }
+
+    int panelW = 380;
+    int panelH = 70;
+    int panelX = (SCREEN_W / 2) - (panelW / 2);
+    int panelY = SCREEN_H - 90;
+
+    DrawRectangle(panelX, panelY, panelW, panelH, Fade(BLACK, 0.6f));
+    DrawRectangleLines(panelX, panelY, panelW, panelH, colLizard);
+
+    // Ikon Navigasi 
+    UIButton btnSpeedDown = {{panelX + 20, panelY + 15, 50, 40}, "<<", colFlatGreen, colLizard, colWhiteText};
+    
+    const char* playText = isSequenceDone ? "RESTART" : (isPlaying ? "PAUSE" : "PLAY");
+    Color playBgCol = isSequenceDone ? colAcorn : (isPlaying ? colGermanDark : colFlatGreen);
+    Color playHovCol = isSequenceDone ? colBrightGold : (isPlaying ? colFlatGreen : colLizard);
+    
+    // Tombol aksi pusat 
+    UIButton btnPlay = {{panelX + 85, panelY + 15, 120, 40}, playText, playBgCol, playHovCol, colWhiteText};
+    UIButton btnSpeedUp = {{panelX + 220, panelY + 15, 50, 40}, ">>", colFlatGreen, colLizard, colWhiteText};
+
+    if (GuiButton(btnSpeedDown)) {
+        timeScale -= 0.5f;
+        if (timeScale < 0.5f) timeScale = 0.5f; 
+    }
+    
+    if (GuiButton(btnPlay)) {
+        if (isSequenceDone) {
+            simTimer = 0.0f;
+            timeScale = 1.0f;
+            isPlaying = true;
+        } else {
+            isPlaying = !isPlaying;
         }
+    }
 
-        int panelW = 380;
-        int panelH = 70;
-        int panelX = (SCREEN_W / 2) - (panelW / 2);
-        int panelY = SCREEN_H - 90;
+    if (GuiButton(btnSpeedUp)) {
+        timeScale += 0.5f;
+        if (timeScale > 5.0f) timeScale = 5.0f; 
+    }
 
-        DrawRectangle(panelX, panelY, panelW, panelH, Fade(BLACK, 0.6f));
-        DrawRectangleLines(panelX, panelY, panelW, panelH, colLizard);
+    char timeTxt[30]; 
+    snprintf(timeTxt, 30, "%.1fx | %02ds", timeScale, (int)simTimer);
+    DrawText(timeTxt, panelX + 290, panelY + 27, 16, colBrightGold); 
 
-        // Ikon Navigasi 
-        UIButton btnSpeedDown = {{panelX + 20, panelY + 15, 50, 40}, "<<", colFlatGreen, colLizard, colWhiteText};
-        
-        const char* playText = isSequenceDone ? "RESTART" : (isPlaying ? "PAUSE" : "PLAY");
-        Color playBgCol = isSequenceDone ? colAcorn : (isPlaying ? colGermanDark : colFlatGreen);
-        Color playHovCol = isSequenceDone ? colBrightGold : (isPlaying ? colFlatGreen : colLizard);
-        
-        // Tombol aksi pusat 
-        UIButton btnPlay = {{panelX + 85, panelY + 15, 120, 40}, playText, playBgCol, playHovCol, colWhiteText};
-        UIButton btnSpeedUp = {{panelX + 220, panelY + 15, 50, 40}, ">>", colFlatGreen, colLizard, colWhiteText};
-
-        if (GuiButton(btnSpeedDown)) {
-            timeScale -= 0.5f;
-            if (timeScale < 0.5f) timeScale = 0.5f; 
-        }
-        
-        if (GuiButton(btnPlay)) {
-            if (isSequenceDone) {
-                simTimer = 0.0f;
-                timeScale = 1.0f;
-                isPlaying = true;
-            } else {
-                isPlaying = !isPlaying;
-            }
-        }
-
-        if (GuiButton(btnSpeedUp)) {
-            timeScale += 0.5f;
-            if (timeScale > 5.0f) timeScale = 5.0f; 
-        }
-
-        char timeTxt[30]; 
-        snprintf(timeTxt, 30, "%.1fx | %02ds", timeScale, (int)simTimer);
-        DrawText(timeTxt, panelX + 290, panelY + 27, 16, colBrightGold); 
+    int currentFPS = GetFPS();
+    
+    // Logika Warna: Hijau (Lancar), Oranye (Sedang), Merah (Drop/Lag)
+    Color fpsCol = (currentFPS >= 50) ? colLizard : ((currentFPS >= 30) ? colBrightGold : RED);
+    
+    // Boks transparan kecil untuk latar belakang FPS agar mudah dibaca
+    DrawRectangle(SCREEN_W - 130, 15, 110, 35, Fade(BLACK, 0.5f));
+    DrawRectangleLines(SCREEN_W - 130, 15, 110, 35, fpsCol);
+    
+    // Tampilkan teks FPS menggunakan TextFormat bawaan Raylib
+    DrawText(TextFormat("FPS: %d", currentFPS), SCREEN_W - 110, 23, 20, fpsCol);
 }

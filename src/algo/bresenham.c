@@ -88,15 +88,3 @@ void Bres_DashDotLine(int x1, int y1, int x2, int y2, Color color) {
         }
     }
 }
-
-// Fungsi ini menggambar garis lurus horizontal 100x lebih cepat dari Bresenham biasa
-void FastHorizontalLine(int x1, int x2, int y, Color c) {
-    // Pastikan x1 selalu lebih kecil dari x2
-    if (x1 > x2) {
-        int temp = x1;
-        x1 = x2;
-        x2 = temp;
-    }
-    // Menggambar 1 baris piksel secara langsung
-    DrawRectangle(x1, y, (x2 - x1) + 1, 1, c);
-}
