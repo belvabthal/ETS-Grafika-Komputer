@@ -26,6 +26,10 @@ static float panOffsetY = 0.0f;
 static float targetZoom = 30.0f; 
 static float currentZoomFloat = 30.0f; 
 
+// --- Challange ---
+static bool isBluePrintMode = false;
+static int weatherState = 0;
+
 static Color LerpColor(Color a, Color b, float t) {
     if (t < 0.0f) t = 0.0f;
     if (t > 1.0f) t = 1.0f;
@@ -153,6 +157,10 @@ void DrawSimulationScreen(UIButton btnBack, int* currentScreen) {
 
     ClearBackground(currentSky);
 
+    if (IsKeyPressed(KEY_O)) {
+        isBluePrintMode = !isBluePrintMode;
+    }
+
     int groundY = MAP_Y(groundLevel);
     Color groundCol = LerpColor((Color){50, 100, 40, 255}, (Color){15, 25, 15, 255}, (simTimer > 24.0f ? 1.0f : simTimer/24.0f));
     
@@ -166,7 +174,7 @@ void DrawSimulationScreen(UIButton btnBack, int* currentScreen) {
             float camMinX = (0 - G_OriginX) / (float)G_TickStep;
             float camMaxX = (SCREEN_W - G_OriginX) / (float)G_TickStep;
 
-            DrawStarField(camMinX - 1.0f, camMaxX + 1.0f, simTimer, starAlpha, false);
+            DrawStarField(camMinX - 1.0f, camMaxX + 1.0f, simTimer, starAlpha, isBluePrintMode);
         }
 
     // VIEW FRUSTUM CULLING (HUTAN)
@@ -177,16 +185,16 @@ void DrawSimulationScreen(UIButton btnBack, int* currentScreen) {
         if (tx >= camMinX - 3.0f && tx <= camMaxX + 3.0f) {
             if (tx < -5.0f || tx > 20.0f) { 
                 float randomScale = 1.5f + (fabs(sinf(tx)) * 0.8f); 
-                DrawComplexTree(tx, groundLevel + randomScale, randomScale, false);
+                DrawComplexTree(tx, groundLevel + randomScale, randomScale, isBluePrintMode);
             }
         }
     }
 
     // RENDER KAMP & OBJEK UTAMA
-    DrawComplexTent(-4.0f, groundLevel, 1.6f, false);
+    DrawComplexTent(-4.0f, groundLevel, 1.6f, isBluePrintMode);
 
     float wheelAngle = carX / carScale; 
-    DrawComplexCar(carX, groundLevel + carScale, carScale, false, wheelAngle);
+    DrawComplexCar(carX, groundLevel + carScale, carScale, isBluePrintMode, wheelAngle);
 
     if (simTimer > 25.5f) {
         float p2Time = simTimer - 25.5f; 
@@ -201,13 +209,39 @@ void DrawSimulationScreen(UIButton btnBack, int* currentScreen) {
             personX = 1.5f; 
             personWalkAnim = 5.1f + (p2Time - 5.0f); 
         }
-        DrawComplexPerson(personX, groundLevel + personScale, personScale, false, personWalkAnim);
+        DrawComplexPerson(personX, groundLevel + personScale, personScale, isBluePrintMode, personWalkAnim);
 
         float fireAnimState = -1.0f; 
         if (p2Time > 5.5f) fireAnimState = p2Time - 5.5f; 
-        DrawComplexCampfire(4.5f, groundLevel, 1.0f, false, fireAnimState);
+        DrawComplexCampfire(4.5f, groundLevel, 1.0f, isBluePrintMode, fireAnimState);
     }
+
+    // --- Cuaca ---
+    if (weatherState == 1) {
+        // Overlay abu-abu transparan agar suasana terlihat mendung
+        DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(DARKGRAY, 0.3f));
+
+        // Generate 300 rintik hujan murni menggunakan Matematika (Tanpa Array memori)
+        for (int i = 0; i < 300; i++) {
+            // 1. Acak posisi X di layar menggunakan seed trigonometri 'i'
+            int rx = (int)(fabs(sinf(i * 12.9898f)) * SCREEN_W);
+            
+            // 2. Posisi Y jatuh seiring waktu (simTimer). 
+            // Menggunakan fmodf agar rintik yang menyentuh bawah layar kembali ke atas secara instan!
+            float fallSpeed = 800.0f * (0.8f + fabs(cosf(i)) * 0.5f); 
+            int ry = (int)fmodf((i * 78.233f) + (simTimer * fallSpeed), SCREEN_H + 100) - 50;
+            
+            int dropLen = 15 + (int)(fabs(sinf(i)) * 10); 
+            Color rainCol = isBluePrintMode ? RAYWHITE : (Color){150, 200, 250, 150};
+            
+            BresenhamLine(rx, ry, rx - 5, ry + dropLen, rainCol);
+        }
+    }
+
     // UI MEDIA CONTROLS 
+    if (IsKeyPressed(KEY_W)) weatherState = (weatherState == 0) ? 1 : 0;
+
+    // Tombol Kembali ke Menu
     if (GuiButton(btnBack)) {
         G_OriginX = originalOriginX;
         G_OriginY = originalOriginY;
@@ -216,55 +250,65 @@ void DrawSimulationScreen(UIButton btnBack, int* currentScreen) {
         *currentScreen = SCREEN_MENU;
     }
 
-    int panelW = 380;
+    // --- KOTAK PANEL UTAMA ---
+    int panelW = 700; 
     int panelH = 70;
     int panelX = (SCREEN_W / 2) - (panelW / 2);
     int panelY = SCREEN_H - 90;
-
     DrawRectangle(panelX, panelY, panelW, panelH, Fade(BLACK, 0.6f));
     DrawRectangleLines(panelX, panelY, panelW, panelH, colLizard);
 
-    // Ikon Navigasi 
-    UIButton btnSpeedDown = {{panelX + 20, panelY + 15, 50, 40}, "<<", colFlatGreen, colLizard, colWhiteText};
+    const char* txtOutline = isBluePrintMode ? "OUTLINE: ON" : "OUTLINE: OFF";
+    Color colOutBg = isBluePrintMode ? colBrightGold : colGermanDark;
+    Color colOutHov = isBluePrintMode ? colAcorn : colFlatGreen;
+    UIButton btnSimOutline = {{panelX + 20, panelY + 15, 140, 40}, txtOutline, colOutBg, colOutHov, colWhiteText};
+
+    const char* txtWeather = (weatherState == 1) ? "CUACA: HUJAN" : "CUACA: CERAH";
+    Color colWeaBg = (weatherState == 1) ? colLizard : colGermanDark;
+    Color colWeaHov = (weatherState == 1) ? colFlatGreen : colFlatGreen;
+    UIButton btnSimWeather = {{panelX + 170, panelY + 15, 140, 40}, txtWeather, colWeaBg, colWeaHov, colWhiteText};
+
+    UIButton btnSpeedDown = {{panelX + 330, panelY + 15, 50, 40}, "<<", colFlatGreen, colLizard, colWhiteText};
     
     const char* playText = isSequenceDone ? "RESTART" : (isPlaying ? "PAUSE" : "PLAY");
     Color playBgCol = isSequenceDone ? colAcorn : (isPlaying ? colGermanDark : colFlatGreen);
     Color playHovCol = isSequenceDone ? colBrightGold : (isPlaying ? colFlatGreen : colLizard);
+    UIButton btnPlay = {{panelX + 390, panelY + 15, 120, 40}, playText, playBgCol, playHovCol, colWhiteText};
     
-    // Tombol aksi pusat 
-    UIButton btnPlay = {{panelX + 85, panelY + 15, 120, 40}, playText, playBgCol, playHovCol, colWhiteText};
-    UIButton btnSpeedUp = {{panelX + 220, panelY + 15, 50, 40}, ">>", colFlatGreen, colLizard, colWhiteText};
+    UIButton btnSpeedUp = {{panelX + 520, panelY + 15, 50, 40}, ">>", colFlatGreen, colLizard, colWhiteText};
+
+    if (GuiButton(btnSimOutline)) isBluePrintMode = !isBluePrintMode;
+    if (GuiButton(btnSimWeather)) weatherState = (weatherState == 0) ? 1 : 0;
 
     if (GuiButton(btnSpeedDown)) {
-        timeScale -= 0.5f;
+        timeScale -= 0.5f; 
         if (timeScale < 0.5f) timeScale = 0.5f; 
     }
     
     if (GuiButton(btnPlay)) {
-        if (isSequenceDone) {
+        if (isSequenceDone) { 
             simTimer = 0.0f;
             timeScale = 1.0f;
             isPlaying = true;
-        } else {
+        } else { 
             isPlaying = !isPlaying;
         }
     }
 
     if (GuiButton(btnSpeedUp)) {
-        timeScale += 0.5f;
+        timeScale += 0.5f; 
         if (timeScale > 5.0f) timeScale = 5.0f; 
     }
 
+    // --- TEKS INDIKATOR KECEPATAN (UJUNG KANAN) ---
     char timeTxt[30]; 
     snprintf(timeTxt, 30, "%.1fx | %02ds", timeScale, (int)simTimer);
-    DrawText(timeTxt, panelX + 290, panelY + 27, 16, colBrightGold); 
+    DrawText(timeTxt, panelX + 590, panelY + 27, 16, colBrightGold);
 
     int currentFPS = GetFPS();
     
-    // Logika Warna: Hijau (Lancar), Oranye (Sedang), Merah (Drop/Lag)
     Color fpsCol = (currentFPS >= 50) ? colLizard : ((currentFPS >= 30) ? colBrightGold : RED);
     
-    // Boks transparan kecil untuk latar belakang FPS agar mudah dibaca
     DrawRectangle(SCREEN_W - 130, 15, 110, 35, Fade(BLACK, 0.5f));
     DrawRectangleLines(SCREEN_W - 130, 15, 110, 35, fpsCol);
     
