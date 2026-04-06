@@ -186,7 +186,6 @@ void DrawStarField(float minX, float maxX, float animTime, float alphaFade, bool
 
 void DrawRainWeather(int screenW, int screenH, float animTime, bool isOutlineMode) {
     DrawRectangle(0, 0, screenW, screenH, Fade(DARKGRAY, 0.3f));
-
     // Generate 300 rintik hujan murni menggunakan Matematika (Tanpa Array memori)
     for (int i = 0; i < 300; i++) {
         // Acak posisi X di layar menggunakan seed trigonometri 'i'

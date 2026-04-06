@@ -6,12 +6,13 @@
 #include "src/objects/tent.h"
 #include "src/objects/person.h"
 #include "src/objects/car.h"
+#include "src/objects/bear.h"
 #include "src/ui/cartesian.h"   
 #include <stdio.h>
 
 static bool isBlueprintMode = false;
 static int currentObjIndex = 0;      
-const int TOTAL_OBJECTS = 6;         
+const int TOTAL_OBJECTS = 7;         
 
 void DrawBlueprintPatternsScreen(UIButton btnBack, int* currentScreen) {
     ClearBackground((Color){20, 22, 18, 255});
@@ -56,6 +57,7 @@ void DrawBlueprintPatternsScreen(UIButton btnBack, int* currentScreen) {
         case 3: objTitle = "OBJEK 4: ANATOMI ORANG"; DrawComplexPerson(0.0f, -3.0f, 1.5f, isBlueprintMode, 0.0f); break;
         case 4: objTitle = "OBJEK 5: KENDARAAN (MOBIL)"; DrawComplexCar(0.0f, -1.0f, 1.5f, isBlueprintMode, 0.0f); break;
         case 5: objTitle = "OBJEK 6: BINTANG PROSEDURAL"; DrawStarField(-20.0f, 20.0f, (float)GetTime(), 1.0f, isBlueprintMode); break;
+        case 6: objTitle = "OBJEK 7: BERUANG"; DrawComplexBear(0.0f, -3.0f, 1.5f, isBlueprintMode, 0.0f); break;
     }
 
     int textWidth = MeasureText(objTitle, 20);

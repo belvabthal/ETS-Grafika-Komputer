@@ -6,6 +6,7 @@
 #include "src/objects/car.h"
 #include "src/objects/tent.h"
 #include "src/objects/person.h"
+#include "src/objects/bear.h"
 
 #include <stdio.h>
 #include <math.h>
@@ -66,7 +67,7 @@ void DrawSimulationScreen(UIButton btnBack, int* currentScreen) {
         isCameraInitialized = true;
     }
 
-    bool isSequenceDone = (simTimer >= 32.0f);
+    bool isSequenceDone = (simTimer >= 90.0f);
 
     if (isPlaying) {
         simTimer += GetFrameTime() * timeScale; 
@@ -150,10 +151,13 @@ void DrawSimulationScreen(UIButton btnBack, int* currentScreen) {
     Color skyNight = (Color){ 15,  20,  40, 255}; 
 
     Color currentSky;
-    if (simTimer < 8.0f) currentSky = skyDay;
-    else if (simTimer < 16.0f) currentSky = LerpColor(skyDay, skyDusk, (simTimer - 8.0f) / 8.0f);
+    if (simTimer < 8.0f) currentSky = skyDay; 
+    else if (simTimer < 16.0f) currentSky = LerpColor(skyDay, skyDusk, (simTimer - 8.0f) / 8.0f); 
     else if (simTimer < 24.0f) currentSky = LerpColor(skyDusk, skyNight, (simTimer - 16.0f) / 8.0f);
-    else currentSky = skyNight;
+    else if (simTimer < 75.0f) currentSky = skyNight; 
+    else if (simTimer < 82.0f) currentSky = LerpColor(skyNight, skyDusk, (simTimer - 75.0f) / 7.0f); 
+    else if (simTimer < 90.0f) currentSky = LerpColor(skyDusk, skyDay, (simTimer - 82.0f) / 8.0f); 
+    else currentSky = skyDay;
 
     ClearBackground(currentSky);
 
@@ -162,20 +166,32 @@ void DrawSimulationScreen(UIButton btnBack, int* currentScreen) {
     }
 
     int groundY = MAP_Y(groundLevel);
-    Color groundCol = LerpColor((Color){50, 100, 40, 255}, (Color){15, 25, 15, 255}, (simTimer > 24.0f ? 1.0f : simTimer/24.0f));
+    Color groundCol;
+    if (simTimer < 24.0f) {
+        groundCol = LerpColor((Color){50, 100, 40, 255}, (Color){15, 25, 15, 255}, simTimer/24.0f);
+    } else if (simTimer < 75.0f) {
+        groundCol = (Color){15, 25, 15, 255};
+    } else {
+        groundCol = LerpColor((Color){15, 25, 15, 255}, (Color){50, 100, 40, 255}, (simTimer - 75.0f)/15.0f);
+    }
     
     DrawRectangle(0, groundY, SCREEN_W, 2000, groundCol);
-    Bres_ThickLine(0, groundY, SCREEN_W, groundY, 4, DARKBROWN); 
+    Bres_ThickLine(0, groundY, SCREEN_W, groundY, 4, DARKBROWN);
 
-    if (simTimer > 24.0f) {
-            float starAlpha = (simTimer - 24.0f) / 2.0f; 
-            if (starAlpha > 1.0f) starAlpha = 1.0f; 
+    // BINTANG MUNCUL DAN MEMUDAR
+    if (simTimer > 24.0f && simTimer < 85.0f) { 
+        float starAlpha = 1.0f;
+        if (simTimer < 26.0f) starAlpha = (simTimer - 24.0f) / 2.0f; // Fade In (Malam)
+        else if (simTimer > 80.0f) starAlpha = 1.0f - ((simTimer - 80.0f) / 5.0f); // Fade Out (Pagi)
 
-            float camMinX = (0 - G_OriginX) / (float)G_TickStep;
-            float camMaxX = (SCREEN_W - G_OriginX) / (float)G_TickStep;
+        if (starAlpha > 1.0f) starAlpha = 1.0f; 
+        if (starAlpha < 0.0f) starAlpha = 0.0f;
 
-            DrawStarField(camMinX - 1.0f, camMaxX + 1.0f, simTimer, starAlpha, isBluePrintMode);
-        }
+        float camMinX = (0 - G_OriginX) / (float)G_TickStep;
+        float camMaxX = (SCREEN_W - G_OriginX) / (float)G_TickStep;
+
+        DrawStarField(camMinX - 1.0f, camMaxX + 1.0f, simTimer, starAlpha, isBluePrintMode);
+    }
 
     // VIEW FRUSTUM CULLING (HUTAN)
     float camMinX = (0 - G_OriginX) / (float)G_TickStep;
@@ -191,30 +207,88 @@ void DrawSimulationScreen(UIButton btnBack, int* currentScreen) {
     }
 
     // RENDER KAMP & OBJEK UTAMA
+    // 1. TENDA 
     DrawComplexTent(-4.0f, groundLevel, 1.6f, isBluePrintMode);
 
-    float wheelAngle = carX / carScale; 
-    DrawComplexCar(carX, groundLevel + carScale, carScale, isBluePrintMode, wheelAngle);
+    // 2. BERUANG MUNCUL (Jam 10 Malam / simTimer = 40.0 sampai 45.0)
+    // 2. BERUANG MUNCUL (Jam 10 Malam / simTimer = 40.0 sampai 45.0)
+    if (simTimer > 40.0f) {
+        float bearX = -15.0f; // Mulai dari luar layar kiri
+        float bearAnim = 0.0f;
+        float bearScale = 1.4f; // Ukuran beruang
 
+        if (simTimer < 45.0f) { 
+            // Fase 1: Jalan mendekati tenda (sampai X = -8.0)
+            // Jarak tempuh 7 unit dalam 5 detik -> kecepatan 1.4
+            bearX = -15.0f + ((simTimer - 40.0f) * 1.4f); 
+            bearAnim = simTimer;
+        } else if (simTimer < 47.0f) { 
+            // Fase 2: Berhenti dan menatap orang (2 detik ketegangan di X = -8.0)
+            bearX = -8.0f;
+            bearAnim = 0.0f; // Mode Idle (Bernapas/Diam)
+        } else if (simTimer < 52.0f) { 
+            // Fase 3: Orang kabur, beruang maju ke tempat api unggun (Target X = -1.0)
+            // Baru mulai jalan di detik 49 agar memberi waktu orangnya lari duluan
+            if (simTimer > 49.0f) {
+                // Jarak tempuh 7 unit (-8 ke -1) dalam 3 detik (52 - 49)
+                bearX = -8.0f + ((simTimer - 49.0f) * (7.0f / 3.0f)); 
+                bearAnim = simTimer;
+            } else {
+                bearX = -8.0f; // Masih diam melihat orang lari
+            }
+        } else if (simTimer < 70.0f) { 
+            // Fase 4: Menikmati kehangatan api unggun di X = -1.0
+            bearX = -1.0f;
+            bearAnim = 0.0f; 
+        } else { 
+            // Fase 5: Api mati, beruang pergi ke kanan hutan (Mulai dari X = -1.0)
+            bearX = -1.0f + ((simTimer - 70.0f) * 2.0f);
+            bearAnim = simTimer;
+        }
+        
+        // Render beruang SEBELUM mobil agar bisa tertutup bodi mobil saat lewat
+        DrawComplexBear(bearX, groundLevel + bearScale, bearScale, isBluePrintMode, bearAnim);
+    }
+
+    // 3. LOGIKA ORANG & API UNGGUN
     if (simTimer > 25.5f) {
         float p2Time = simTimer - 25.5f; 
         float personScale = 1.1f;
-        float personX;
-        float personWalkAnim;
+        float personX = 1.5f; // Posisi santai di api
+        float personWalkAnim = 0.0f;
+        bool isHiddenInTent = false;
 
-        if (p2Time < 5.0f) {
+        if (p2Time < 5.0f) { 
+            // Jalan dari mobil ke api
             personX = 17.0f - (p2Time * 3.1f); 
             personWalkAnim = p2Time; 
-        } else {
+        } else if (simTimer < 47.0f) { 
+            // Santai di api (sampai detik 47, yaitu 2 detik setelah beruang muncul)
             personX = 1.5f; 
             personWalkAnim = 5.1f + (p2Time - 5.0f); 
+        } else if (simTimer < 49.0f) { 
+            // PANIK KABUR KE TENDA! (Berlari ke X = -4.0)
+            personX = 1.5f - ((simTimer - 47.0f) * 3.5f); 
+            personWalkAnim = 0.1f + ((simTimer - 47.0f) * 2.5f);
+        } else {
+            isHiddenInTent = true; 
         }
-        DrawComplexPerson(personX, groundLevel + personScale, personScale, isBluePrintMode, personWalkAnim);
 
+        if (!isHiddenInTent) {
+            DrawComplexPerson(personX, groundLevel + personScale, personScale, isBluePrintMode, personWalkAnim);
+        }
+
+        // LOGIKA API UNGGUN
         float fireAnimState = -1.0f; 
-        if (p2Time > 5.5f) fireAnimState = p2Time - 5.5f; 
+        if (p2Time > 5.5f && simTimer < 70.0f) {
+            fireAnimState = p2Time - 5.5f; 
+        }
         DrawComplexCampfire(4.5f, groundLevel, 1.0f, isBluePrintMode, fireAnimState);
     }
+
+    // 4. MOBIL (Digambar paling terakhir agar menutupi beruang yang lewat di belakangnya)
+    float wheelAngle = carX / carScale; 
+    DrawComplexCar(carX, groundLevel + carScale, carScale, isBluePrintMode, wheelAngle);
 
     // --- Cuaca ---
     if (weatherState == 1) {
@@ -287,6 +361,25 @@ void DrawSimulationScreen(UIButton btnBack, int* currentScreen) {
     char timeTxt[30]; 
     snprintf(timeTxt, 30, "%.1fx | %02ds", timeScale, (int)simTimer);
     DrawText(timeTxt, panelX + 590, panelY + 27, 16, colBrightGold);
+
+    
+    float gameHour = 7.0f; 
+    if (simTimer <= 31.0f) {
+        gameHour = 7.0f + (simTimer / 31.0f) * 12.0f;
+    } else if (simTimer <= 90.0f) {
+        gameHour = 19.0f + ((simTimer - 31.0f) / 59.0f) * 12.0f;
+    }
+
+    int displayHour = ((int)gameHour) % 24;
+    int displayMin = (int)((gameHour - (int)gameHour) * 60);
+
+    DrawRectangle(20, 15, 170, 45, Fade(BLACK, 0.6f));
+    DrawRectangleLines(20, 15, 170, 45, colBrightGold);
+    DrawText(TextFormat("%02d : %02d", displayHour, displayMin), 35, 22, 30, RAYWHITE);
+    
+    const char* periodText = (displayHour >= 6 && displayHour < 18) ? "DAY" : "NIGHT";
+    Color periodCol = (displayHour >= 6 && displayHour < 18) ? SKYBLUE : colFlatGreen;
+    DrawText(periodText, 135, 28, 16, periodCol);
 
     int currentFPS = GetFPS();
     
