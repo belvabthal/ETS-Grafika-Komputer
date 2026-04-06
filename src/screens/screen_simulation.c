@@ -218,24 +218,7 @@ void DrawSimulationScreen(UIButton btnBack, int* currentScreen) {
 
     // --- Cuaca ---
     if (weatherState == 1) {
-        // Overlay abu-abu transparan agar suasana terlihat mendung
-        DrawRectangle(0, 0, SCREEN_W, SCREEN_H, Fade(DARKGRAY, 0.3f));
-
-        // Generate 300 rintik hujan murni menggunakan Matematika (Tanpa Array memori)
-        for (int i = 0; i < 300; i++) {
-            // 1. Acak posisi X di layar menggunakan seed trigonometri 'i'
-            int rx = (int)(fabs(sinf(i * 12.9898f)) * SCREEN_W);
-            
-            // 2. Posisi Y jatuh seiring waktu (simTimer). 
-            // Menggunakan fmodf agar rintik yang menyentuh bawah layar kembali ke atas secara instan!
-            float fallSpeed = 800.0f * (0.8f + fabs(cosf(i)) * 0.5f); 
-            int ry = (int)fmodf((i * 78.233f) + (simTimer * fallSpeed), SCREEN_H + 100) - 50;
-            
-            int dropLen = 15 + (int)(fabs(sinf(i)) * 10); 
-            Color rainCol = isBluePrintMode ? RAYWHITE : (Color){150, 200, 250, 150};
-            
-            BresenhamLine(rx, ry, rx - 5, ry + dropLen, rainCol);
-        }
+         DrawRainWeather(SCREEN_W, SCREEN_H, simTimer, isBluePrintMode);
     }
 
     // UI MEDIA CONTROLS 

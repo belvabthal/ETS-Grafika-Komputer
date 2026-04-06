@@ -152,8 +152,10 @@ void DrawComplexCampfire(float cx, float cy, float scale, bool isOutlineMode, fl
 
 void DrawStarField(float minX, float maxX, float animTime, float alphaFade, bool isOutlineMode) {
     for (float sx = 100.0f; sx >= -50.0f; sx -= 0.2f) {
+        
         if (sx >= minX && sx <= maxX) {
             
+            // --- BINTANG 1 (Bentuk '+', Zona Bawah-Menengah) ---
             float sy1 = 2.5f + (fabs(sinf(sx * 17.31f)) * 40.0f); 
             float twinkle1 = 0.3f + (fabs(cosf(animTime * 2.5f + sx)) * 0.7f); 
             unsigned char a1 = isOutlineMode ? 255 : (unsigned char)(255.0f * alphaFade * twinkle1);
@@ -162,9 +164,11 @@ void DrawStarField(float minX, float maxX, float animTime, float alphaFade, bool
             int bx1 = MAP_X(sx);
             int by1 = MAP_Y(sy1);
             
+            // Gambar bentuk '+'
             BresenhamLine(bx1 - 1, by1, bx1 + 1, by1, c1);
             BresenhamLine(bx1, by1 - 1, bx1, by1 + 1, c1);
 
+            // --- BINTANG 2 (Bentuk 'x', Zona Menengah-Puncak) ---
             float sy2 = 10.0f + (fabs(cosf(sx * 33.79f)) * 80.0f); 
             float twinkle2 = 0.3f + (fabs(sinf(animTime * 1.8f + sx * 2.0f)) * 0.7f); 
             unsigned char a2 = isOutlineMode ? 255 : (unsigned char)(255.0f * alphaFade * twinkle2);
@@ -172,9 +176,32 @@ void DrawStarField(float minX, float maxX, float animTime, float alphaFade, bool
             
             int bx2 = MAP_X(sx);
             int by2 = MAP_Y(sy2);
-        
-            BresenhamLine(bx2 - 1, by2, bx2 + 1, by2, c2);
-            BresenhamLine(bx2, by2 - 1, bx2, by2 + 1, c2);
+            
+            // Gambar bentuk 'x'
+            BresenhamLine(bx2 - 1, by2 - 1, bx2 + 1, by2 + 1, c2);
+            BresenhamLine(bx2 - 1, by2 + 1, bx2 + 1, by2 - 1, c2);
         }
+    }
+}
+
+void DrawRainWeather(int screenW, int screenH, float animTime, bool isOutlineMode) {
+    DrawRectangle(0, 0, screenW, screenH, Fade(DARKGRAY, 0.3f));
+
+    // Generate 300 rintik hujan murni menggunakan Matematika (Tanpa Array memori)
+    for (int i = 0; i < 300; i++) {
+        // Acak posisi X di layar menggunakan seed trigonometri 'i'
+        int rx = (int)(fabs(sinf(i * 12.9898f)) * screenW);
+        
+        // Posisi Y jatuh seiring waktu (animTime). 
+        // Menggunakan fmodf agar rintik yang menyentuh bawah layar kembali ke atas secara instan!
+        float fallSpeed = 800.0f * (0.8f + fabs(cosf(i)) * 0.5f); 
+        int ry = (int)fmodf((i * 78.233f) + (animTime * fallSpeed), screenH + 100) - 50;
+        
+        // Gambar Hujan miring (tertiup angin) dengan Bresenham
+        int dropLen = 15 + (int)(fabs(sinf(i)) * 10); 
+        Color rainCol = isOutlineMode ? RAYWHITE : (Color){150, 200, 250, 150};
+        
+        // Garis ditarik dari (rx, ry) miring ke kiri sejauh 5 pixel
+        BresenhamLine(rx, ry, rx - 5, ry + dropLen, rainCol);
     }
 }
